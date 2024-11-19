@@ -37,3 +37,7 @@ video2_path = "subwayserf/subway_clip1_cropped.mp4"  # Путь к нижнем�
 output_path = "merged_video.mp4"  # Путь для сохранения результата
 
 merge_videos(video1_path, video2_path, output_path)
+
+# counter_of_shorts = len([file for file in os.listdir(subway_folder) if os.path.isfile(os.path.join(subway_folder, file))])
+# for i in range(counter_of_shorts):
+#     os.rename(f"{subway_folder}/subway_p{i}.mp4", f"{subway_folder}/clip_p{i}.mp4")

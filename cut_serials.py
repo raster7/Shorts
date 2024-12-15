@@ -6,13 +6,12 @@ from subsai import SubsAI
 import os
 import subprocess
 
-
 def cut_clips():
-    video = VideoFileClip(file_name, fps_source="fps")
+    video = VideoFileClip(file_name)
     subway_video = VideoFileClip(f"{shorts_folder}/subway_files/{subway_file}")
     video_duration = video.duration
-    min_duration = 55
-    max_duration = 65
+    min_duration = 60
+    max_duration = 60
     all_clips = []
     clips = []
     subway_clips = []
@@ -22,27 +21,26 @@ def cut_clips():
         clip_duration = random.randint(min_duration, max_duration)
         end_time = min(current_time + clip_duration, video_duration)
         clip = video.subclip(current_time, end_time)
-        subway_clip = subway_video.subclip(current_time+45, end_time)
-        all_clips.append((current_time, end_time, clip, subway_clip))
+        if clip.duration > 25:
+            subway_clip = subway_video.subclip(current_time, end_time)
+            all_clips.append((current_time, end_time, clip, subway_clip))
         current_time = end_time
 
-
     for i, (start_time, end_time, clip, subway_clip) in enumerate(all_clips):
-        clip_filename = f"{clips_folder}/clip_p{i}.mkv"
-        subway_clip_filename = f"{subway_folder}/clip_p{i}.mkv"
+        clip_filename = f"{clips_folder}/clip_p{i}.{extension}"
+        subway_clip_filename = f"{subway_folder}/clip_p{i}.{extension}"
         clip.write_videofile(clip_filename, codec="libx264", audio_codec="aac", temp_audiofile="temp-audio.m4a", remove_temp=True)
         print(f"Сцена с {start_time // 60}:{start_time % 60} - {end_time // 60}:{end_time % 60} сохранена как {clip_filename}")
         clips.append(clip)
         clip_temp = VideoFileClip(clip_filename)
-        if clip_temp.duration < 20:
+        if clip_temp.duration < 25:
             clip_temp.close()
-            os.remove(clip_temp)
+            os.remove(f"{clips_folder}/clip_p{i}.{extension}")
         else:
             subway_clip.write_videofile(subway_clip_filename, codec="libx264", audio_codec="aac", temp_audiofile="temp-audio.m4a", remove_temp=True)
             subway_clips.append(subway_clip)
 
     return clips, subway_clips
-
 
 def cropp_videos():
     for i in range(counter_of_shorts):
@@ -55,7 +53,7 @@ def cropp_videos():
 
         clip = VideoFileClip(f"{subway_folder}/clip_p{i}_cropped_temp.mkv")
         original_width, original_height = clip.size
-        cropped_clip = clip.crop(x1=0, y1=0, x2=original_width, y2=original_height - 10)
+        cropped_clip = clip.crop(x1=0, y1=0, x2=original_width, y2=original_height - 100)
         cropped_clip.write_videofile(f"{subway_folder}/clip_p{i}_cropped.{extension}", codec="libx264", audio_codec="aac")
         clip.close()
         os.remove(f"{subway_folder}/clip_p{i}_cropped_temp.{extension}")
@@ -70,11 +68,15 @@ def merge_videos():
                                      temp_audiofile="temp-audio.m4a", remove_temp=True)
 
 
-def converte_to_normal_resolution():
+def convert_to_normal_resolution():
     for i in range(counter_of_shorts):
-        temp = VideoFileClip(f"{merged_folder}/merged_video_p{i}.{extension}")
-        merged_video = temp.resize(height=1920, width=1080)
-        merged_video.write_videofile(f"{merged_folder}/merged_video_p{i}.mp4", codec="libx264", audio_codec="aac")
+        temp = VideoFileClip(f"{merged_folder}/temp_p{i}.{extension}")
+        merged_video = temp.resize((1080, 1920))
+        merged_video.write_videofile(
+            f"{merged_folder}/merged_video_p{i}.mp4",
+            codec="libx264",
+            audio_codec="aac"
+        )
         temp.close()
         os.remove(f"{merged_folder}/temp_p{i}.{extension}")
 
@@ -83,18 +85,17 @@ def add_subtitles():
     for i in range(counter_of_shorts):
         file = f"{merged_folder}/merged_video_p{i}.{extension}"
         subs_ai = SubsAI()
-        model = subs_ai.create_model('openai/whisper', {'model_type': 'medium'})
+        model = subs_ai.create_model('openai/whisper', {'model_type': 'medium', 'compute_type': 'fp32'})
         subs = subs_ai.transcribe(file, model)
         subs.save(f"{subtitles_folder}/subtitles_clip_p{i}.srt")
-
         command = [
             'ffmpeg', '-y', '-i', f"{merged_folder}/merged_video_p{i}.{extension}",
-            '-vf', f"subtitles={subtitles_folder}/subtitles_clip_p{i}.srt:force_style='Alignment=2,Fontsize=10,MarginV=135'",
+            '-vf', f"subtitles={subtitles_folder}/subtitles_clip_p{i}.srt:force_style='Alignment=2,Fontsize=10,MarginV=128'",
             f"{done_folder}/{done_folder}_p{i}.{extension}"
         ]
-        subprocess.run(command)
+        subprocess.run(command, check=True)
 
-file_name = "thekitchen_e2s1.mkv"
+file_name = "thekitchen_e7s1.mkv"
 subway_file = "subway.mp4"
 done_folder = "DONE_SHORTS"
 clips_folder = "clips_video"
@@ -114,14 +115,14 @@ episod = match_episod.group(1)
 match_film_folder = re.search(r'([^_]+)_', file_name)
 film_folder = match_film_folder.group(1)
 
-os.makedirs(f"{shorts_folder}/films/{film_folder}/season{season}", exist_ok=True)
-os.makedirs(f"{shorts_folder}/films/{film_folder}/season{season}/episod{episod}", exist_ok=True)
+os.makedirs(f"{shorts_folder}/serials/{film_folder}/season{season}", exist_ok=True)
+os.makedirs(f"{shorts_folder}/serials/{film_folder}/season{season}/episod{episod}", exist_ok=True)
 
-if os.path.exists(f"{shorts_folder}/films/{film_folder}/{file_name}"):
-    shutil.move(f"{shorts_folder}/films/{film_folder}/{file_name}",
-                f"{shorts_folder}/films/{film_folder}/season{season}/episod{episod}")
+if os.path.exists(f"{shorts_folder}/serials/{film_folder}/{file_name}"):
+    shutil.move(f"{shorts_folder}/serials/{film_folder}/{file_name}",
+                f"{shorts_folder}/serials/{film_folder}/season{season}/episod{episod}")
 
-os.chdir(f"{shorts_folder}/films/{film_folder}/season{season}/episod{episod}")
+os.chdir(f"{shorts_folder}/serials/{film_folder}/season{season}/episod{episod}")
 os.makedirs(clips_folder, exist_ok=True)
 os.makedirs(subway_folder, exist_ok=True)
 os.makedirs(done_folder, exist_ok=True)
@@ -129,12 +130,17 @@ os.makedirs(subtitles_folder, exist_ok=True)
 os.makedirs(merged_folder, exist_ok=True)
 
 # file_name = f"{shorts_folder}/films/{film_folder}/season{season}/episod{episod}/{file_name}"
-tmp_counter = len([file for file in os.listdir(clips_folder) if os.path.isfile(os.path.join(clips_folder, file))])
-counter_of_shorts = tmp_counter
 
-# cut_clips()
-# cropp_videos()
-# merge_videos()
-converte_to_normal_resolution()
+video = VideoFileClip(file_name)
+dur = video.duration / 60
+counter_of_shorts = int(video.duration / 60)
+if dur - int(dur) > 0.41:
+    counter_of_shorts += 1
+video.close()
+
+cut_clips()
+cropp_videos()
+merge_videos()
+convert_to_normal_resolution()
 extension = 'mp4'
 add_subtitles()

@@ -7,7 +7,7 @@ import os
 import subprocess
 
 
-def cut_clips(duration=120):
+def cut_clips(duration):
     video = VideoFileClip(file_name, fps_source="fps")
     gameplay_video = VideoFileClip(f"{shorts_folder}/gameplay_files/{gameplay_file}")
     video_duration = video.duration
@@ -31,7 +31,7 @@ def cut_clips(duration=120):
         print(f"Сцена с {start_time // 60}:{start_time % 60} - {end_time // 60}:{end_time % 60} сохранена как {clip_filename}")
         clips.append(clip)
         clip_temp = VideoFileClip(clip_filename)
-        if clip_temp.duration < 30:
+        if clip_temp.duration < 45:
             clip_temp.close()
             os.remove(f"{clips_folder}/clip_p{i+1}.{extension}")
         else:
@@ -43,20 +43,12 @@ def cut_clips(duration=120):
 
 def cropp_videos():
     for i in range(counter_of_shorts):
-        command = ['ffmpeg', '-y', '-i', f"{clips_folder}/clip_p{i+1}.{extension}", '-vf', 'crop=w=iw-700:h=ih:x=300:y=0',
+        command = ['ffmpeg', '-y', '-i', f"{clips_folder}/clip_p{i+1}.{extension}", '-vf', 'crop=w=iw-700:h=ih:x=350:y=0',
                     f"{clips_folder}/clip_p{i+1}_cropped.{extension}"]
         subprocess.run(command)
-        command = ['ffmpeg', '-y', '-i', f"{gameplay_folder}/clip_p{i+1}.{extension}", '-vf', 'crop=w=iw-700:h=ih:x=300:y=0',
-                   f"{gameplay_folder}/clip_p{i+1}_cropped_temp.{extension}"]
+        command = ['ffmpeg', '-y', '-i', f"{gameplay_folder}/clip_p{i+1}.{extension}", '-vf', 'crop=w=iw-700:h=ih:x=350:y=0',
+                   f"{gameplay_folder}/clip_p{i+1}_cropped.{extension}"]
         subprocess.run(command)
-
-        clip = VideoFileClip(f"{gameplay_folder}/clip_p{i+1}_cropped_temp.{extension}")
-        original_width, original_height = clip.size
-        cropped_clip = clip.crop(x1=0, y1=0, x2=original_width, y2=original_height - 100)
-        cropped_clip.write_videofile(f"{gameplay_folder}/clip_p{i+1}_cropped.{extension}", codec="libx264", audio_codec="aac")
-        clip.close()
-        os.remove(f"{gameplay_folder}/clip_p{i+1}_cropped_temp.{extension}")
-
 
 def merge_videos():
     for i in range(counter_of_shorts):
@@ -86,13 +78,14 @@ def add_subtitles():
 
         command = [
             'ffmpeg', '-y', '-i', f"{merged_folder}/merged_video_p{i+1}.{extension}",
-            '-vf', f"subtitles={subtitles_folder}/subtitles_clip_p{i+1}.srt:force_style='Alignment=2,Fontsize=10,MarginV=127'",
+            '-vf', f"subtitles={subtitles_folder}/subtitles_clip_p{i+1}.srt:force_style='Alignment=2,Fontsize=8,MarginV=127'",
             f"{done_folder}/{done_folder}_p{i+1}.{extension}"
         ]
         subprocess.run(command)
 
-file_name = "moodrenych_v4.mp4"
+file_name = "toples_v4.mp4"
 gameplay_file = "minecraft_v1.mp4"
+clip_duration = 200
 done_folder = "DONE_SHORTS"
 clips_folder = "clips_video"
 subtitles_folder = "subtitles_for_clips"
@@ -123,9 +116,14 @@ os.makedirs(merged_folder, exist_ok=True)
 
 # file_name = f"{shorts_folder}/youtube/{video_folder}/video{video}/episod{episod}/{file_name}"
 
-cut_clips(150)
-counter_of_shorts = len([file for file in os.listdir(clips_folder) if os.path.isfile(os.path.join(clips_folder, file))])
-cropp_videos()
-merge_videos()
+video_file = VideoFileClip(file_name, fps_source="fps")
+counter_of_shorts = int(video_file.duration // clip_duration) if video_file.duration % clip_duration == 0 or video_file.duration / clip_duration - video_file.duration / clip_duration < 0.2 else int(video_file.duration // clip_duration) + 1
+print(counter_of_shorts)
+
+# cut_clips(clip_duration)
+# #counter_of_shorts = len([file for file in os.listdir(clips_folder) if os.path.isfile(os.path.join(clips_folder, file))])
+# cropp_videos()
+# merge_videos()
 extension = 'mp4'
 add_subtitles()
+
